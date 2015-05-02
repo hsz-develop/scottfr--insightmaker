@@ -325,7 +325,7 @@ function innerRunSimulation(config) {
 				agent.index = j;
 				agent.children = [];
 				agent.childrenId = {};
-				agent.agentId = item.id;
+				agent.agentId = submodel.id;
 				agent.createIds();
 				if (submodel.agentBase) {
 					agent.vector.parent = submodel.agentBase;
@@ -717,19 +717,31 @@ function innerRunSimulation(config) {
 }
 
 function formatSimResults(res) {
-	res = deepClone({}, res, 3, function(x){
-		if(x instanceof Vector){
-			if(x.names){
-				var r = {};
-				for(var i = 0; i < x.names.length; i++){
-					r[x.names[i]] = x.items[i];
+	var makeMap = function(returnNonVecs){
+		return function(x){
+			if(x instanceof Vector){
+				if(x.names){
+					var r = {};
+					for(var i = 0; i < x.names.length; i++){
+						r[x.names[i]] = vecMap(x.items[i]);
+					}
+					return r;
+				}else{
+					return x.items.slice().map(vecMap);
 				}
-				return r;
 			}else{
-				return x.items.slice();
+				if(returnNonVecs){
+					return x;
+				}else{
+					return undefined;
+				}
 			}
 		}
-	});
+	}
+	
+	var vecMap = makeMap(true);
+	
+	res = deepClone({}, res, 3, makeMap(false));
 	
 	if (isUndefined(res.error)) {
 		res.error = "none";
@@ -1218,13 +1230,20 @@ function linkPrimitive(primitive, dna) {
 				primitive.setSource("*time");
 			} else {
 				var source = orig(findID(dna.source)).id;
-
+				var sourceSet = false;
 				for (var neighbor in myNeighborhood) {
 					if (source == myNeighborhood[neighbor].id) {
 						primitive.setSource(myNeighborhood[neighbor]);
+						sourceSet = true;
 						break;
 					}
 				}
+				
+				if(! sourceSet){
+					error("Converter source could not be found. Please redefine it.", dna.cell, false);
+				}
+				
+				
 			}
 		} else {
 			//console.log("setting: "+dna.name);
